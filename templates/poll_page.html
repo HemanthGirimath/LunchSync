@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Lunch Poll{% endblock %}
+{% block content %}
+{% if poll.closed %}
+  <h1>This poll is closed</h1>
+  <p>Results are already being processed.</p>
+{% elif submitted %}
+  <h1>Thanks — your response is recorded!</h1>
+{% else %}
+  <h1>{{ "What would you like today?" if poll.type == "dietary" else "Pick a cuisine" }}</h1>
+  <form method="post">
+    <label>Your name</label>
+    <input name="name" required />
+    <label>Choice</label>
+    <select name="choice">
+      {% for opt in poll.options %}
+        <option value="{{ opt }}">{{ opt.replace("_", " ") | title }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Submit</button>
+  </form>
+{% endif %}
+{% endblock %}

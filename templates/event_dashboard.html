@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Event #{{ event.id }}{% endblock %}
+{% block content %}
+<h1>Event #{{ event.id }} <span class="status">{{ event.status }}</span></h1>
+<p>{{ event.location }} &middot; Rs.{{ event.budget_per_head }}/head &middot; ~{{ event.headcount_estimate }} people</p>
+
+{% if event.status == "dietary_poll_open" %}
+  <div class="card">
+    <h2>Poll #1 — Veg / Non-Veg</h2>
+    <p>Share this link with employees:</p>
+    <div class="link-box">{{ base_url }}/poll/{{ dietary_poll.id }}</div>
+    <p>{{ dietary_poll.responses|length }} responses so far.</p>
+    <form method="post" action="/polls/{{ dietary_poll.id }}/close">
+      <button type="submit">Close poll now</button>
+    </form>
+  </div>
+
+{% elif event.status == "cuisine_poll_open" %}
+  <div class="card">
+    <h2>Poll #2 — Cuisine</h2>
+    <p>Veg: {{ event.veg_count }} &middot; Non-veg: {{ event.non_veg_count }} &middot; Pure veg: {{ event.pure_veg_count }}</p>
+    <p>Share this link with employees:</p>
+    <div class="link-box">{{ base_url }}/poll/{{ cuisine_poll.id }}</div>
+    <p>{{ cuisine_poll.responses|length }} responses so far.</p>
+    <form method="post" action="/polls/{{ cuisine_poll.id }}/close">
+      <button type="submit">Close poll now</button>
+    </form>
+  </div>
+
+{% elif event.status == "awaiting_restaurant_pick" %}
+  <div class="card">
+    <h2>Pick a restaurant — {{ event.winning_cuisine }}</h2>
+    <form method="post" action="/events/{{ event.id }}/pick-restaurant">
+      {% for r in event.pending_interrupt.candidates %}
+        <label>
+          <input type="radio" name="restaurant_id" value="{{ r.id }}" {% if loop.first %}checked{% endif %} />
+          {{ r.name }} — {{ r.rating }}★ — ~Rs.{{ r.estimated_per_person_cost }}/head
+        </label>
+      {% endfor %}
+      <button type="submit">Select restaurant</button>
+    </form>
+  </div>
+
+{% elif event.status == "awaiting_cart_approval" %}
+  <div class="card">
+    <h2>Review cart — {{ event.selected_restaurant_name }}</h2>
+    <form method="post" action="/events/{{ event.id }}/approve-cart">
+      <table>
+        <tr><th>Item</th><th>Type</th><th>Price</th><th>Qty</th></tr>
+        {% for item in event.pending_interrupt.cart_items %}
+        <tr>
+          <td>
+            {{ item.name }}
+            <input type="hidden" name="name_{{ loop.index0 }}" value="{{ item.name }}" />
+            <input type="hidden" name="price_{{ loop.index0 }}" value="{{ item.price }}" />
+            <input type="hidden" name="veg_{{ loop.index0 }}" value="{{ item.veg }}" />
+          </td>
+          <td>{{ "Veg" if item.veg else "Non-veg" }}</td>
+          <td>Rs.{{ item.price }}</td>
+          <td><input name="qty_{{ loop.index0 }}" type="number" value="{{ item.quantity }}" /></td>
+        </tr>
+        {% endfor %}
+      </table>
+      <input type="hidden" name="item_count" value="{{ event.pending_interrupt.cart_items|length }}" />
+      <p>Estimated total: Rs.{{ event.pending_interrupt.total_cost }}</p>
+      <button type="submit" name="mode" value="approve">Approve & place order</button>
+      <button type="submit" name="mode" value="edit" class="secondary">Save edits & place order</button>
+    </form>
+  </div>
+
+{% elif event.status in ["order_placed", "delivered"] %}
+  <div class="card">
+    <h2>Order {{ "delivered" if event.status == "delivered" else "placed" }}</h2>
+    {% if order %}
+    <p>{{ order.restaurant_name }} &middot; Swiggy order {{ order.swiggy_order_id }}</p>
+    <p>Total: Rs.{{ order.total_cost }}</p>
+    <p><strong>{{ order.status }}</strong></p>
+    {% endif %}
+    {% if event.status != "delivered" %}
+      <meta http-equiv="refresh" content="5">
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}
