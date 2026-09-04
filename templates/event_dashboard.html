@@ -78,6 +78,25 @@
     </form>
   </div>
 
+{% elif event.status == "awaiting_cuisine_tiebreak" %}
+  <div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb;">
+    <h2 style="color: #b45309; margin-top: 0;">⚖️ Poll Tied! Organizer Tie-Breaker</h2>
+    <p style="font-size: 0.95rem; color: #78350f;">
+      Poll #2 ended in a tie with <strong>{{ event.pending_interrupt.votes }} vote(s) each</strong>. As the event coordinator, pick which cuisine the team should order today:
+    </p>
+    <form method="post" action="/events/{{ event.id }}/resolve-tiebreak">
+      <div style="display: flex; flex-direction: column; gap: 8px; margin: 14px 0;">
+        {% for c in event.pending_interrupt.tied_cuisines %}
+          <label style="padding: 12px 16px; border: 2px solid #fcd34d; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; background: #ffffff; font-weight: 600; font-size: 1.05rem;">
+            <input type="radio" name="chosen_cuisine" value="{{ c }}" {% if loop.first %}checked{% endif %} style="width: auto; margin: 0;" />
+            <span>🍽️ {{ c }} ({{ event.pending_interrupt.tally.get(c, event.pending_interrupt.votes) }} votes)</span>
+          </label>
+        {% endfor %}
+      </div>
+      <button type="submit" style="background: #b45309;">Proceed with Selected Cuisine</button>
+    </form>
+  </div>
+
 {% elif event.status == "awaiting_restaurant_pick" %}
   <div class="card">
     <h2>Pick a restaurant — {{ event.winning_cuisine }}</h2>

@@ -78,17 +78,47 @@ async def close_cuisine_poll(db: Session, event_id: int) -> None:
     tally: dict[str, int] = {}
     for r in poll.responses:
         tally[r["choice"]] = tally.get(r["choice"], 0) + 1
-    winning = max(tally, key=tally.get) if tally else poll.options[0]
 
     event = db.get(LunchEvent, event_id)
+    if not tally:
+        # No votes, default to first option
+        winning = poll.options[0]
+        await _proceed_with_winning_cuisine(db, event, winning)
+        return
+
+    max_votes = max(tally.values())
+    tied_cuisines = [c for c, count in tally.items() if count == max_votes]
+
+    if len(tied_cuisines) > 1:
+        # There is a tie! Ask the organizer to break the tie
+        event.status = "awaiting_cuisine_tiebreak"
+        event.pending_interrupt = {
+            "type": "cuisine_tiebreak",
+            "tied_cuisines": tied_cuisines,
+            "votes": max_votes,
+            "tally": tally,
+        }
+        db.commit()
+        return
+
+    winning = tied_cuisines[0]
+    await _proceed_with_winning_cuisine(db, event, winning)
+
+
+async def resolve_cuisine_tiebreak(db: Session, event: LunchEvent, chosen_cuisine: str) -> None:
+    """Organizer resolved the tiebreak between cuisines."""
+    await _proceed_with_winning_cuisine(db, event, chosen_cuisine)
+
+
+async def _proceed_with_winning_cuisine(db: Session, event: LunchEvent, winning: str) -> None:
     event.winning_cuisine = winning
     event.status = "awaiting_restaurant_pick"
     db.commit()
 
     pending = await runner.start(
-        event_id,
+        event.id,
         {
-            "event_id": event_id,
+            "event_id": event.id,
             "location": event.location,
             "budget_per_head": event.budget_per_head,
             "veg_count": event.veg_count,

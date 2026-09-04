@@ -261,6 +261,16 @@ async def close_poll(poll_id: int):
     return RedirectResponse(f"/events/{event_id}", status_code=303)
 
 
+@app.post("/events/{event_id}/resolve-tiebreak")
+async def resolve_tiebreak(event_id: int, chosen_cuisine: str = Form(...)):
+    db = SessionLocal()
+    event = db.get(LunchEvent, event_id)
+    if event and event.status == "awaiting_cuisine_tiebreak":
+        await services.resolve_cuisine_tiebreak(db, event, chosen_cuisine)
+    db.close()
+    return RedirectResponse(f"/events/{event_id}", status_code=303)
+
+
 @app.post("/events/{event_id}/pick-restaurant")
 async def pick_restaurant(event_id: int, restaurant_id: str = Form(...)):
     db = SessionLocal()

@@ -53,15 +53,22 @@ def await_cart_approval_node(state: LunchState) -> dict:
             "menu": state.get("menu", []),
         }
     )
-    result = {}
+    cart_items = state["cart_items"]
+    total_cost = state["total_cost"]
+    is_simulation = state.get("is_simulation", True)
+
     if decision and isinstance(decision, dict):
         if decision.get("cart_items"):
-            items = decision["cart_items"]
-            result["cart_items"] = items
-            result["total_cost"] = sum(i["price"] * i["quantity"] for i in items)
+            cart_items = decision["cart_items"]
+            total_cost = sum(i["price"] * i["quantity"] for i in cart_items)
         if "is_simulation" in decision:
-            result["is_simulation"] = bool(decision["is_simulation"])
-    return result
+            is_simulation = bool(decision["is_simulation"])
+
+    return {
+        "cart_items": cart_items,
+        "total_cost": total_cost,
+        "is_simulation": is_simulation,
+    }
 
 
 async def place_order_node(state: LunchState) -> dict:
