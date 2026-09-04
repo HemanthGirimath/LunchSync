@@ -140,16 +140,36 @@
         </div>
       </div>
 
-      <button type="submit" name="mode" value="approve">Approve & place order ({{ total_portions }} portions)</button>
+      <div style="margin: 16px 0; padding: 14px 16px; border: 1px solid #fed7aa; background: #fffaf0; border-radius: 8px;">
+        <strong style="display: block; margin-bottom: 8px; color: #9a3412;">Order Placement Mode:</strong>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; margin: 4px 0; color: #15803d;">
+          <input type="radio" name="order_type" value="simulation" checked style="width: auto; margin: 0;" />
+          🧪 Test / Simulation Mode (Recommended for testing — no real order or money charged)
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; margin: 6px 0 0; color: #b91c1c;">
+          <input type="radio" name="order_type" value="live" style="width: auto; margin: 0;" />
+          🚀 Live Swiggy Order (Places a REAL order on your Swiggy account with Pay-on-Delivery)
+        </label>
+      </div>
+
+      <button type="submit" name="mode" value="approve">Place order ({{ total_portions }} portions)</button>
       <button type="submit" name="mode" value="edit" class="secondary">Save edits & place order</button>
     </form>
   </div>
 
 {% elif event.status in ["order_placed", "delivered"] %}
   <div class="card">
-    <h2>Order {{ "delivered" if event.status == "delivered" else "placed" }}</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0;">Order {{ "delivered" if event.status == "delivered" else "placed" }}</h2>
+      {% if order and order.swiggy_order_id.startswith("TEST-") %}
+        <span class="auth-badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">🧪 TEST / SIMULATION ORDER</span>
+      {% else %}
+        <span class="auth-badge auth-connected">● LIVE SWIGGY ORDER</span>
+      {% endif %}
+    </div>
+
     {% if order %}
-    <p>{{ order.restaurant_name }} &middot; Swiggy order <code>{{ order.swiggy_order_id }}</code></p>
+    <p style="margin-top: 12px;">{{ order.restaurant_name }} &middot; Order ID <code>{{ order.swiggy_order_id }}</code></p>
     {% set ordered_portions = order.cart_items | sum(attribute='quantity') if order.cart_items else 0 %}
     <div style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; margin: 10px 0; font-size: 0.9rem;">
       <div><strong>Total cost:</strong> Rs.{{ order.total_cost }}</div>

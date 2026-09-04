@@ -135,10 +135,26 @@ async def poll_order_tracking_once(db: Session, order_id: int) -> bool:
     order = db.get(Order, order_id)
     if not order:
         return True
+
+    # If it's a test/simulated order, advance status gracefully
+    if order.swiggy_order_id.startswith("TEST-"):
+        statuses = ["confirmed", "food_being_prepared", "out_for_delivery", "delivered"]
+        curr_idx = statuses.index(order.status) if order.status in statuses else 0
+        next_idx = min(curr_idx + 1, len(statuses) - 1)
+        order.status = statuses[next_idx]
+        is_delivered = order.status == "delivered"
+        if is_delivered:
+            event = db.get(LunchEvent, order.event_id)
+            if event:
+                event.status = "delivered"
+        db.commit()
+        return is_delivered
+
     result = await swiggy.track_food_order(order.swiggy_order_id)
     order.status = result["status"]
     if result["delivered"]:
         event = db.get(LunchEvent, order.event_id)
-        event.status = "delivered"
+        if event:
+            event.status = "delivered"
     db.commit()
     return result["delivered"]

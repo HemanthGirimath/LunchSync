@@ -18,3 +18,4 @@ class LunchState(TypedDict, total=False):
     total_cost: float
 
     order_id: str
+    is_simulation: bool

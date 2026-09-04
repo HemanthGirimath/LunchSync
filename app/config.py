@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./lunchsync.db")
+_raw_db_url = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = _raw_db_url if _raw_db_url else "sqlite:///./lunchsync.db"
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")

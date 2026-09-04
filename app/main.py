@@ -282,7 +282,8 @@ async def approve_cart(request: Request, event_id: int):
     db = SessionLocal()
     event = db.get(LunchEvent, event_id)
 
-    decision = {"approved": True}
+    is_simulation = form.get("order_type") != "live"
+    decision = {"approved": True, "is_simulation": is_simulation}
     if form.get("mode") == "edit":
         item_count = int(form.get("item_count", 0))
         items = []
@@ -295,7 +296,7 @@ async def approve_cart(request: Request, event_id: int):
                     "quantity": int(form[f"qty_{i}"]),
                 }
             )
-        decision = {"cart_items": items}
+        decision["cart_items"] = items
 
     await services.submit_cart_decision(db, event, decision)
     db.close()

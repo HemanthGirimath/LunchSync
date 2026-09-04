@@ -47,13 +47,24 @@ def await_cart_approval_node(state: LunchState) -> dict:
     decision = interrupt(
         {"type": "approve_cart", "cart_items": state["cart_items"], "total_cost": state["total_cost"]}
     )
-    if decision and decision.get("cart_items"):
-        items = decision["cart_items"]
-        return {"cart_items": items, "total_cost": sum(i["price"] * i["quantity"] for i in items)}
-    return {}
+    result = {}
+    if decision and isinstance(decision, dict):
+        if decision.get("cart_items"):
+            items = decision["cart_items"]
+            result["cart_items"] = items
+            result["total_cost"] = sum(i["price"] * i["quantity"] for i in items)
+        if "is_simulation" in decision:
+            result["is_simulation"] = bool(decision["is_simulation"])
+    return result
 
 
 async def place_order_node(state: LunchState) -> dict:
+    is_sim = state.get("is_simulation", True)  # Safe default to simulation
+    if is_sim:
+        import uuid
+        sim_order_id = f"TEST-SWG-{uuid.uuid4().hex[:8].upper()}"
+        return {"order_id": sim_order_id}
+
     cart = await swiggy.update_food_cart(state["selected_restaurant"]["id"], state["cart_items"])
     result = await swiggy.place_food_order(cart["cart_id"], state["location"])
     return {"order_id": result["swiggy_order_id"]}
