@@ -50,57 +50,86 @@ async def swiggy_oauth_callback(request: Request):
     error = request.query_params.get("error")
 
     if error:
-        return {
-            "status": "error",
-            "message": f"OAuth authorization failed: {error}",
-        }
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "events": [],
+                "error": f"OAuth authorization failed: {error}",
+                "swiggy_connected": False,
+            },
+            status_code=400,
+        )
 
     if not code or not state:
-        return {
-            "status": "error",
-            "message": "Missing authorization code or state.",
-        }
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "events": [],
+                "error": "Missing authorization code or state.",
+                "swiggy_connected": False,
+            },
+            status_code=400,
+        )
 
     verifier = swiggy_auth.pop_verifier_for_state(state)
     if not verifier:
-        return {
-            "status": "error",
-            "message": "Invalid or expired state/session. Please initiate login again at /auth/swiggy/login.",
-        }
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "events": [],
+                "error": "Invalid or expired session state. Please click 'Connect Swiggy' to try again.",
+                "swiggy_connected": False,
+            },
+            status_code=400,
+        )
 
     redirect_uri = f"{BASE_URL.rstrip('/')}/auth/swiggy/callback"
     try:
-        token_data = await swiggy_auth.exchange_code_for_token(
+        await swiggy_auth.exchange_code_for_token(
             code=code,
             verifier=verifier,
             redirect_uri=redirect_uri,
         )
-        return {
-            "status": "success",
-            "message": "Successfully authenticated with Swiggy MCP!",
-            "token_type": token_data.get("token_type", "Bearer"),
-            "expires_in": token_data.get("expires_in"),
-            "scope": token_data.get("scope"),
-        }
+        return RedirectResponse(url="/?swiggy_connected=1", status_code=303)
     except Exception as exc:
-        return {
-            "status": "error",
-            "message": f"Token exchange failed: {str(exc)}",
-        }
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "events": [],
+                "error": f"Token exchange failed: {str(exc)}",
+                "swiggy_connected": False,
+            },
+            status_code=400,
+        )
 
+
+
+@app.get("/auth/swiggy/logout")
+@app.post("/auth/swiggy/logout")
+def swiggy_logout():
+    swiggy_auth.logout()
+    return RedirectResponse(url="/?logged_out=1", status_code=303)
 
 
 @app.get("/")
 def home(request: Request):
-    db = SessionLocal()
-    events = db.query(LunchEvent).order_by(LunchEvent.id.desc()).limit(10).all()
-    db.close()
+    is_conn = swiggy_auth.is_authenticated()
+    events = []
+    if is_conn:
+        db = SessionLocal()
+        events = db.query(LunchEvent).order_by(LunchEvent.id.desc()).limit(10).all()
+        db.close()
+
     return templates.TemplateResponse(
         "home.html",
         {
             "request": request,
             "events": events,
-            "swiggy_connected": swiggy_auth.is_authenticated(),
+            "swiggy_connected": is_conn,
         },
     )
 
@@ -113,6 +142,18 @@ def create_event(
     headcount_estimate: int = Form(...),
     poll_minutes: int = Form(2),
 ):
+    if not swiggy_auth.is_authenticated():
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "events": [],
+                "error": "Please connect your Swiggy account before creating a lunch event.",
+                "swiggy_connected": False,
+            },
+            status_code=403,
+        )
+
     db = SessionLocal()
     event = services.create_event_with_dietary_poll(db, location, budget_per_head, headcount_estimate, poll_minutes)
     event_id = event.id
@@ -140,6 +181,17 @@ def event_dashboard(request: Request, event_id: int):
             "swiggy_connected": swiggy_auth.is_authenticated(),
         },
     )
+
+
+@app.post("/events/{event_id}/update-location")
+def update_event_location(event_id: int, location: str = Form(...)):
+    db = SessionLocal()
+    event = db.get(LunchEvent, event_id)
+    if event and location.strip():
+        event.location = location.strip()
+        db.commit()
+    db.close()
+    return RedirectResponse(f"/events/{event_id}", status_code=303)
 
 
 @app.get("/poll/{poll_id}")

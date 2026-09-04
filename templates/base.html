@@ -8,14 +8,67 @@
 <body>
   <header>
     <a href="/" class="brand">LunchSync</a>
-    <div>
+    <div style="display: flex; align-items: center; gap: 10px;">
       {% if swiggy_connected %}
         <span class="auth-badge auth-connected">● Swiggy Connected</span>
+        <a href="/auth/swiggy/logout" class="auth-badge auth-logout" onclick="return confirm('Are you sure you want to disconnect from Swiggy?')">Logout</a>
       {% else %}
         <a href="/auth/swiggy/login" class="auth-badge auth-btn">Connect Swiggy</a>
       {% endif %}
     </div>
   </header>
   <main>{% block content %}{% endblock %}</main>
+  <script>
+    function autoDetectLocation(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
+        return;
+      }
+      const prevPlaceholder = input.placeholder;
+      input.placeholder = "Detecting current GPS coordinates...";
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            const addr = data.address || {};
+            input.value = [addr.suburb || addr.neighbourhood, addr.city || addr.town || addr.county, addr.state].filter(Boolean).join(", ") || data.display_name.split(",").slice(0, 3).join(",");
+          } else {
+            input.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+          }
+        } catch (e) {
+          input.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        }
+        input.placeholder = prevPlaceholder;
+      }, (err) => {
+        alert("Could not detect location: " + err.message);
+        input.placeholder = prevPlaceholder;
+      });
+    }
+
+    async function copyLink(elementId, buttonElement) {
+      const input = document.getElementById(elementId);
+      if (!input) return;
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch (e) {
+        input.select();
+        document.execCommand('copy');
+      }
+      const originalText = buttonElement.innerText;
+      buttonElement.innerText = "✓ Copied!";
+      buttonElement.style.background = "#1e7e34";
+      buttonElement.style.color = "#ffffff";
+      setTimeout(() => {
+        buttonElement.innerText = originalText;
+        buttonElement.style.background = "";
+        buttonElement.style.color = "";
+      }, 2000);
+    }
+  </script>
 </body>
 </html>

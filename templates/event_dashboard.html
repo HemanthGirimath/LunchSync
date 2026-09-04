@@ -2,13 +2,34 @@
 {% block title %}Event #{{ event.id }}{% endblock %}
 {% block content %}
 <h1>Event #{{ event.id }} <span class="status">{{ event.status }}</span></h1>
-<p>{{ event.location }} &middot; Rs.{{ event.budget_per_head }}/head &middot; ~{{ event.headcount_estimate }} people</p>
+<p>Rs.{{ event.budget_per_head }}/head &middot; ~{{ event.headcount_estimate }} people</p>
+
+<div class="card" style="background: #fafafa; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+  <div>
+    <strong>📍 Delivery Address:</strong> <span>{{ event.location }}</span>
+  </div>
+  {% if event.status in ["dietary_poll_open", "cuisine_poll_open", "awaiting_restaurant_pick"] %}
+    <details style="width: 100%; margin-top: 6px;">
+      <summary style="cursor: pointer; color: #e5602a; font-weight: 600; font-size: 0.85rem;">Change address</summary>
+      <form method="post" action="/events/{{ event.id }}/update-location" style="margin-top: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input id="dash_location" name="location" value="{{ event.location }}" required style="flex: 1; min-width: 200px;" />
+          <button type="button" onclick="autoDetectLocation('dash_location')" style="background: #555; color: white; margin: 0; padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer;">📍 Auto-detect</button>
+          <button type="submit" style="margin: 0; padding: 6px 14px; font-size: 0.85rem;">Save</button>
+        </div>
+      </form>
+    </details>
+  {% endif %}
+</div>
 
 {% if event.status == "dietary_poll_open" %}
   <div class="card">
     <h2>Poll #1 — Veg / Non-Veg</h2>
     <p>Share this link with employees:</p>
-    <div class="link-box">{{ base_url }}/poll/{{ dietary_poll.id }}</div>
+    <div class="link-box-container">
+      <input type="text" class="link-box" readonly value="{{ base_url }}/poll/{{ dietary_poll.id }}" id="poll-link-{{ dietary_poll.id }}" />
+      <button type="button" class="copy-btn" onclick="copyLink('poll-link-{{ dietary_poll.id }}', this)">📋 Copy</button>
+    </div>
     <p>{{ dietary_poll.responses|length }} responses so far.</p>
     <form method="post" action="/polls/{{ dietary_poll.id }}/close">
       <button type="submit">Close poll now</button>
@@ -20,7 +41,10 @@
     <h2>Poll #2 — Cuisine</h2>
     <p>Veg: {{ event.veg_count }} &middot; Non-veg: {{ event.non_veg_count }} &middot; Pure veg: {{ event.pure_veg_count }}</p>
     <p>Share this link with employees:</p>
-    <div class="link-box">{{ base_url }}/poll/{{ cuisine_poll.id }}</div>
+    <div class="link-box-container">
+      <input type="text" class="link-box" readonly value="{{ base_url }}/poll/{{ cuisine_poll.id }}" id="poll-link-{{ cuisine_poll.id }}" />
+      <button type="button" class="copy-btn" onclick="copyLink('poll-link-{{ cuisine_poll.id }}', this)">📋 Copy</button>
+    </div>
     <p>{{ cuisine_poll.responses|length }} responses so far.</p>
     <form method="post" action="/polls/{{ cuisine_poll.id }}/close">
       <button type="submit">Close poll now</button>

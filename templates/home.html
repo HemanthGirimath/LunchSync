@@ -1,24 +1,39 @@
 {% extends "base.html" %}
 {% block title %}LunchSync{% endblock %}
 {% block content %}
+{% if request.query_params.get("logged_out") %}
+<div style="background: #eef2f7; color: #334155; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500;">
+  You have been successfully logged out from Swiggy.
+</div>
+{% endif %}
+{% if not swiggy_connected %}
+<div style="background: #fff8e1; border: 1px solid #ffe082; color: #856404; padding: 14px 18px; border-radius: 8px; margin-bottom: 24px;">
+  <strong>⚠️ Swiggy Not Connected</strong>
+  <p style="margin: 6px 0 10px; font-size: 0.95rem;">You must connect your Swiggy account before you can create lunch events, view previous events, or place group orders.</p>
+  <a href="/auth/swiggy/login" class="auth-badge auth-btn" style="display: inline-block;">Connect Swiggy Account</a>
+</div>
+{% endif %}
 <h1>Start a lunch event</h1>
-<form method="post" action="/events">
-  <label>Location</label>
-  <input name="location" value="Bangalore Office" required />
+<form method="post" action="/events" {% if not swiggy_connected %}style="opacity: 0.6;"{% endif %}>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0 4px;">
+    <label style="margin: 0; font-weight: 600;">Delivery Location (Office/Venue)</label>
+    <button type="button" onclick="autoDetectLocation('home_location')" {% if not swiggy_connected %}disabled{% endif %} style="background: none; border: 1px solid #ccc; color: #333; font-size: 0.8rem; padding: 4px 8px; margin: 0; cursor: {% if swiggy_connected %}pointer{% else %}not-allowed{% endif %}; border-radius: 4px;">📍 Auto-detect</button>
+  </div>
+  <input id="home_location" name="location" value="Bangalore Office" required {% if not swiggy_connected %}disabled{% endif %} />
 
   <label>Budget per head (Rs.)</label>
-  <input name="budget_per_head" type="number" value="200" required />
+  <input name="budget_per_head" type="number" value="200" required {% if not swiggy_connected %}disabled{% endif %} />
 
   <label>Approximate headcount</label>
-  <input name="headcount_estimate" type="number" value="25" required />
+  <input name="headcount_estimate" type="number" value="25" required {% if not swiggy_connected %}disabled{% endif %} />
 
   <label>Poll duration (minutes, demo default is short)</label>
-  <input name="poll_minutes" type="number" value="2" required />
+  <input name="poll_minutes" type="number" value="2" required {% if not swiggy_connected %}disabled{% endif %} />
 
-  <button type="submit">Create event & open dietary poll</button>
+  <button type="submit" {% if not swiggy_connected %}disabled style="cursor: not-allowed; opacity: 0.5;"{% endif %}>Create event & open dietary poll</button>
 </form>
 
-{% if events %}
+{% if swiggy_connected and events %}
 <h2>Recent events</h2>
 {% for e in events %}
 <div class="card">

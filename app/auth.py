@@ -155,3 +155,20 @@ def get_token() -> Optional[str]:
 def is_authenticated() -> bool:
     """Checks if a valid, unexpired token is available."""
     return get_token() is not None
+
+
+def logout() -> None:
+    """Clears the token in memory and deletes all stored token records from the database."""
+    _token_store["access_token"] = None
+    _token_store["expires_at"] = 0.0
+    _token_store["scope"] = None
+    try:
+        from app.db import SessionLocal
+        from app.models import SwiggyToken
+
+        db = SessionLocal()
+        db.query(SwiggyToken).delete()
+        db.commit()
+        db.close()
+    except Exception as exc:
+        print(f"[auth] Failed to clear token from database on logout: {exc}")

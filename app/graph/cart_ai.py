@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.config import ANTHROPIC_API_KEY
+from app.config import OPENAI_API_KEY, OPENAI_MODEL
 
 
 class CartSelection(BaseModel):
@@ -22,27 +22,29 @@ def _deterministic_pick(menu: list[dict], budget_per_head: float) -> tuple[dict,
 
 
 async def choose_items(menu: list[dict], budget_per_head: float) -> tuple[dict, dict]:
-    """Returns (veg_item, non_veg_item). Uses Claude when available, with a
+    """Returns (veg_item, non_veg_item). Uses OpenAI GPT when available, with a
     deterministic best-value fallback if there's no API key or the model
     picks something invalid."""
     veg_fallback, non_veg_fallback = _deterministic_pick(menu, budget_per_head)
 
-    if not ANTHROPIC_API_KEY:
+    if not OPENAI_API_KEY:
         return veg_fallback, non_veg_fallback
 
     try:
-        from langchain_anthropic import ChatAnthropic
+        from langchain_openai import ChatOpenAI
 
-        llm = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0).with_structured_output(
-            CartSelection
-        )
+        llm = ChatOpenAI(
+            model=OPENAI_MODEL,
+            api_key=OPENAI_API_KEY,
+            temperature=0,
+        ).with_structured_output(CartSelection)
         menu_lines = "\n".join(f"- {i['name']} (Rs.{i['price']}, {'veg' if i['veg'] else 'non-veg'})" for i in menu)
         result: CartSelection = await llm.ainvoke(
             "Pick the single best-value veg item and single best-value non-veg item from this "
             f"menu, each within a per-person budget of Rs.{budget_per_head}. Prefer items closer "
             f"to the budget over cheaper ones, as long as they don't exceed it.\n\nMenu:\n{menu_lines}"
         )
-    except Exception:
+    except Exception as exc:
         return veg_fallback, non_veg_fallback
 
     by_name = {i["name"]: i for i in menu}
