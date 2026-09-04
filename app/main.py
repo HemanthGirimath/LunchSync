@@ -217,13 +217,11 @@ def poll_page(request: Request, poll_id: int):
     db = SessionLocal()
     poll = db.get(Poll, poll_id)
     db.close()
-    user_name = request.cookies.get("lunchsync_user_name", "")
     return templates.TemplateResponse(
         "poll_page.html",
         {
             "request": request,
             "poll": poll,
-            "user_name": user_name,
             "submitted": False,
             "swiggy_connected": swiggy_auth.is_authenticated(),
         },
@@ -239,19 +237,15 @@ def poll_submit(request: Request, poll_id: int, name: str = Form(...), choice: s
         poll.responses = [*poll.responses, {"name": clean_name, "choice": choice}]
         db.commit()
     db.close()
-    response = templates.TemplateResponse(
+    return templates.TemplateResponse(
         "poll_page.html",
         {
             "request": request,
             "poll": poll,
-            "user_name": clean_name,
             "submitted": True,
             "swiggy_connected": swiggy_auth.is_authenticated(),
         },
     )
-    if clean_name:
-        response.set_cookie(key="lunchsync_user_name", value=clean_name, max_age=86400 * 30, httponly=False)
-    return response
 
 
 @app.post("/polls/{poll_id}/close")
@@ -284,19 +278,22 @@ async def approve_cart(request: Request, event_id: int):
 
     is_simulation = form.get("order_type") != "live"
     decision = {"approved": True, "is_simulation": is_simulation}
-    if form.get("mode") == "edit":
-        item_count = int(form.get("item_count", 0))
+    item_count = int(form.get("item_count", 0))
+    if item_count > 0:
         items = []
         for i in range(item_count):
-            items.append(
-                {
-                    "name": form[f"name_{i}"],
-                    "price": float(form[f"price_{i}"]),
-                    "veg": form[f"veg_{i}"] == "True",
-                    "quantity": int(form[f"qty_{i}"]),
-                }
-            )
-        decision["cart_items"] = items
+            qty = int(form.get(f"qty_{i}", 0))
+            if qty > 0:
+                items.append(
+                    {
+                        "name": form.get(f"name_{i}"),
+                        "price": float(form.get(f"price_{i}", 0)),
+                        "veg": form.get(f"veg_{i}") == "True",
+                        "quantity": qty,
+                    }
+                )
+        if items:
+            decision["cart_items"] = items
 
     await services.submit_cart_decision(db, event, decision)
     db.close()

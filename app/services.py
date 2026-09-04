@@ -6,7 +6,17 @@ from app.graph import runner
 from app.mcp import swiggy_client as swiggy
 from app.models import LunchEvent, Order, Poll
 
-CUISINE_OPTIONS = ["Biryani", "Pizza", "Thali", "Rolls", "Chinese"]
+CUISINE_OPTIONS = [
+    "Biryani",
+    "Pizza",
+    "North Indian",
+    "South Indian",
+    "Chinese",
+    "Thali",
+    "Burgers & Fast Food",
+    "Rolls & Wraps",
+    "Healthy & Salads",
+]
 DIETARY_OPTIONS = ["veg", "non_veg", "pure_veg"]
 
 

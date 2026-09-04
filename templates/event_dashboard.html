@@ -112,31 +112,60 @@
       <div style="margin-top: 4px;">🍱 Quantities are pre-filled for <strong>{{ total_portions }} portions</strong> based on actual votes. You can customize the quantities below before placing the order.</div>
     </div>
 
-    <form method="post" action="/events/{{ event.id }}/approve-cart">
-      <table>
-        <tr><th>Item</th><th>Type</th><th>Price</th><th>Qty</th></tr>
-        {% for item in event.pending_interrupt.cart_items %}
-        <tr>
-          <td>
-            {{ item.name }}
-            <input type="hidden" name="name_{{ loop.index0 }}" value="{{ item.name }}" />
-            <input type="hidden" name="price_{{ loop.index0 }}" value="{{ item.price }}" />
-            <input type="hidden" name="veg_{{ loop.index0 }}" value="{{ item.veg }}" />
-          </td>
-          <td>{{ "Veg" if item.veg else "Non-veg" }}</td>
-          <td>Rs.{{ item.price }}</td>
-          <td><input name="qty_{{ loop.index0 }}" type="number" min="0" value="{{ item.quantity }}" style="width: 80px;" /></td>
-        </tr>
-        {% endfor %}
+    <form method="post" action="/events/{{ event.id }}/approve-cart" id="cart-form">
+      <table id="cart-table">
+        <thead>
+          <tr>
+            <th style="min-width: 240px;">Item / Dish</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th style="width: 90px;">Qty</th>
+            <th style="width: 90px;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set full_menu = event.pending_interrupt.menu or [] %}
+          {% for item in event.pending_interrupt.cart_items %}
+          <tr class="cart-row" data-index="{{ loop.index0 }}">
+            <td>
+              {% if full_menu %}
+                <select name="menu_choice_{{ loop.index0 }}" onchange="updateCartRow({{ loop.index0 }}, this)" style="padding: 6px; font-size: 0.9rem;">
+                  {% for m in full_menu %}
+                    <option value="{{ m.name }}" data-price="{{ m.price }}" data-veg="{{ m.veg }}" {% if m.name == item.name %}selected{% endif %}>
+                      {{ "🟢" if m.veg else "🔴" }} {{ m.name }} — Rs.{{ m.price }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" id="name_{{ loop.index0 }}" name="name_{{ loop.index0 }}" value="{{ item.name }}" />
+                <input type="hidden" id="price_{{ loop.index0 }}" name="price_{{ loop.index0 }}" value="{{ item.price }}" />
+                <input type="hidden" id="veg_{{ loop.index0 }}" name="veg_{{ loop.index0 }}" value="{{ item.veg }}" />
+              {% else %}
+                <strong>{{ item.name }}</strong>
+                <input type="hidden" id="name_{{ loop.index0 }}" name="name_{{ loop.index0 }}" value="{{ item.name }}" />
+                <input type="hidden" id="price_{{ loop.index0 }}" name="price_{{ loop.index0 }}" value="{{ item.price }}" />
+                <input type="hidden" id="veg_{{ loop.index0 }}" name="veg_{{ loop.index0 }}" value="{{ item.veg }}" />
+              {% endif %}
+            </td>
+            <td id="veg-label-{{ loop.index0 }}">{{ "Veg" if item.veg else "Non-veg" }}</td>
+            <td id="price-label-{{ loop.index0 }}">Rs.{{ item.price }}</td>
+            <td>
+              <input id="qty_{{ loop.index0 }}" name="qty_{{ loop.index0 }}" type="number" min="0" value="{{ item.quantity }}" oninput="recalcCartTotals()" style="width: 70px; padding: 6px;" />
+            </td>
+            <td id="subtotal-{{ loop.index0 }}" style="font-weight: 600;">Rs.{{ item.price * item.quantity }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
-      <input type="hidden" name="item_count" value="{{ event.pending_interrupt.cart_items|length }}" />
-      
-      <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 12px; padding: 10px 0; border-top: 2px solid #eee;">
+      <input type="hidden" name="item_count" id="item_count" value="{{ event.pending_interrupt.cart_items|length }}" />
+
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 12px; padding: 12px; background: #f8fafc; border-radius: 6px;">
         <div>
-          <strong style="font-size: 1.1rem;">Estimated total: Rs.{{ event.pending_interrupt.total_cost }}</strong>
-          {% if total_portions > 0 %}
-            <span style="font-size: 0.85rem; color: #64748b; display: block;">~Rs.{{ (event.pending_interrupt.total_cost / total_portions)|round(1) }} per portion ({{ total_portions }} portions)</span>
-          {% endif %}
+          <span style="font-size: 0.85rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Total Calculation</span>
+          <div style="font-size: 1.2rem; font-weight: 700; color: #0f172a;" id="cart-total-display">Total: Rs.{{ event.pending_interrupt.total_cost }}</div>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Portions</span>
+          <div style="font-size: 1rem; font-weight: 600; color: #334155;" id="cart-portions-display">{{ total_portions }} portions</div>
         </div>
       </div>
 
@@ -152,10 +181,50 @@
         </label>
       </div>
 
-      <button type="submit" name="mode" value="approve">Place order ({{ total_portions }} portions)</button>
-      <button type="submit" name="mode" value="edit" class="secondary">Save edits & place order</button>
+      <button type="submit" id="submit-order-btn">Place order (<span id="btn-portions-count">{{ total_portions }}</span> portions)</button>
     </form>
   </div>
+
+<script>
+  function updateCartRow(index, selectElem) {
+    const selectedOption = selectElem.options[selectElem.selectedIndex];
+    const name = selectedOption.value;
+    const price = parseFloat(selectedOption.getAttribute("data-price")) || 0;
+    const isVeg = selectedOption.getAttribute("data-veg") === "True" || selectedOption.getAttribute("data-veg") === "true";
+
+    document.getElementById(`name_${index}`).value = name;
+    document.getElementById(`price_${index}`).value = price;
+    document.getElementById(`veg_${index}`).value = isVeg;
+    document.getElementById(`veg-label-${index}`).innerText = isVeg ? "Veg" : "Non-veg";
+    document.getElementById(`price-label-${index}`).innerText = `Rs.${price}`;
+
+    recalcCartTotals();
+  }
+
+  function recalcCartTotals() {
+    let total = 0;
+    let portions = 0;
+    const rows = document.querySelectorAll(".cart-row");
+    rows.forEach(row => {
+      const idx = row.getAttribute("data-index");
+      const price = parseFloat(document.getElementById(`price_${idx}`).value) || 0;
+      const qty = parseInt(document.getElementById(`qty_${idx}`).value) || 0;
+      const subtotal = price * qty;
+      document.getElementById(`subtotal-${idx}`).innerText = `Rs.${subtotal}`;
+      total += subtotal;
+      portions += qty;
+    });
+
+    const totalDisplay = document.getElementById("cart-total-display");
+    if (totalDisplay) totalDisplay.innerText = `Total: Rs.${total}`;
+
+    const portionsDisplay = document.getElementById("cart-portions-display");
+    if (portionsDisplay) portionsDisplay.innerText = `${portions} portions`;
+
+    const btnPortions = document.getElementById("btn-portions-count");
+    if (btnPortions) btnPortions.innerText = portions;
+  }
+</script>
 
 {% elif event.status in ["order_placed", "delivered"] %}
   <div class="card">

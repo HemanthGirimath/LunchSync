@@ -19,28 +19,145 @@ FOOD_SERVER_URL = f"{SWIGGY_BASE_URL}/food"
 
 # Fallback restaurant catalogs by cuisine for resilience
 _CUISINE_FALLBACKS = {
-    "Biryani": ["Paradise Biryani", "Behrouz Biryani", "Meghana Foods", "Nagarjuna"],
-    "Pizza": ["Domino's Pizza", "La Pino'z Pizza", "Oven Story Pizza", "Pizza Hut"],
-    "Thali": ["Rajdhani Thali", "Anna Poorna", "Swati Snacks", "Punjabi Rasoi"],
-    "Rolls": ["Faasos", "Kathi Junction", "Wrap Chef", "Roll Baba"],
-    "Chinese": ["Mainland China", "China Bistro", "Wok On", "Chowman"],
+    "Biryani": ["Paradise Biryani", "Behrouz Biryani", "Meghana Foods", "Nagarjuna", "Mani's Dum Biryani"],
+    "Pizza": ["Domino's Pizza", "La Pino'z Pizza", "Oven Story Pizza", "Pizza Hut", "Mojo Pizza"],
+    "North Indian": ["Punjabi Rasoi", "Copper Chimney", "Punjab Grill", "Dhaba Estd 1986 Delhi"],
+    "South Indian": ["A2B - Adyar Ananda Bhavan", "Saravana Bhavan", "Udupi Grand", "Paakashala"],
+    "Chinese": ["Mainland China", "China Bistro", "Wok On", "Chowman", "Beijing Bites"],
+    "Thali": ["Rajdhani Thali", "Anna Poorna", "Swati Snacks", "Punjabi Rasoi Thali"],
+    "Burgers & Fast Food": ["Burger King", "McDonald's", "Wendy's", "Truffles", "Leon's Burgers"],
+    "Rolls & Wraps": ["Faasos", "Kathi Junction", "Wrap Chef", "Roll Baba", "Tibbs Frankie"],
+    "Healthy & Salads": ["Subway", "EatFit", "Salad Days", "FreshMenu Healthy"],
 }
 
-_MENU_FALLBACKS = {
-    "veg": [
-        ("Veg Thali Meal", 180),
-        ("Paneer Butter Masala + Jeera Rice", 220),
-        ("Dum Veg Biryani", 190),
-        ("Veg Fried Rice + Manchurian", 200),
-        ("Margherita Pizza (Regular)", 240),
-    ],
-    "non_veg": [
-        ("Chicken Thali Meal", 230),
-        ("Chicken Biryani (Hyderabadi)", 240),
-        ("Butter Chicken + Steamed Rice", 260),
-        ("Chicken Hakka Noodles", 210),
-        ("Chicken Supreme Pizza (Regular)", 280),
-    ],
+# Cuisine-specific curated menu items (Veg & Non-Veg with prices fitting typical per-head budget)
+_CUISINE_MENU_FALLBACKS: Dict[str, Dict[str, List[tuple]]] = {
+    "Pizza": {
+        "veg": [
+            ("Margherita Pizza (Regular)", 139),
+            ("Farmhouse Pizza (Regular)", 189),
+            ("Peppy Paneer Pizza (Regular)", 199),
+            ("Cheese & Corn Pizza (Regular)", 149),
+            ("Garlic Breadsticks with Dip", 99),
+        ],
+        "non_veg": [
+            ("Pepper Barbecue Chicken Pizza (Regular)", 199),
+            ("Chicken Sausage Pizza (Regular)", 169),
+            ("Non-Veg Supreme Pizza (Regular)", 219),
+            ("Chicken Golden Delight Pizza (Regular)", 209),
+            ("Spicy Baked Chicken Wings", 149),
+        ],
+    },
+    "Biryani": {
+        "veg": [
+            ("Hyderabadi Veg Dum Biryani", 180),
+            ("Paneer Dum Biryani", 210),
+            ("Soya Chaap Biryani", 190),
+            ("Subz Biryani with Mirchi Salan", 170),
+        ],
+        "non_veg": [
+            ("Chicken Dum Biryani", 220),
+            ("Hyderabadi Chicken Boneless Biryani", 240),
+            ("Egg Dum Biryani (2 Eggs)", 160),
+            ("Chicken 65 Biryani", 230),
+        ],
+    },
+    "Chinese": {
+        "veg": [
+            ("Veg Fried Rice with Manchurian", 170),
+            ("Veg Hakka Noodles with Chilli Paneer", 190),
+            ("Paneer Fried Rice Box", 180),
+            ("Crispy Corn Salt & Pepper", 140),
+        ],
+        "non_veg": [
+            ("Chicken Hakka Noodles with Chilli Chicken", 210),
+            ("Chicken Fried Rice with Manchurian", 200),
+            ("Kung Pao Chicken Bowl", 220),
+            ("Chicken Schezwan Rice Bowl", 210),
+        ],
+    },
+    "North Indian": {
+        "veg": [
+            ("Paneer Butter Masala + 2 Butter Naan", 210),
+            ("Dal Makhani + Jeera Rice Meal", 180),
+            ("Chole Bhature Platter (2 Pcs)", 160),
+            ("Kadhai Paneer + Tandoori Roti Combo", 200),
+        ],
+        "non_veg": [
+            ("Butter Chicken + 2 Butter Naan", 240),
+            ("Chicken Curry + Steamed Basmati Rice", 210),
+            ("Kadai Chicken + Laccha Paratha Combo", 230),
+            ("Murgh Lababdar Meal Box", 240),
+        ],
+    },
+    "South Indian": {
+        "veg": [
+            ("Special South Indian Meals / Thali", 160),
+            ("Masala Dosa + Vada Combo", 120),
+            ("Ghee Podi Idli (4 Pcs) + Filter Coffee", 110),
+            ("Bisi Bele Bath + Curd Rice Combo", 140),
+        ],
+        "non_veg": [
+            ("Chettinad Chicken Curry + Malabar Parotta (2 Pcs)", 220),
+            ("Andhra Chicken Fry Meal Box", 230),
+            ("Guntur Chicken Curry with Rice", 210),
+            ("Egg Roast + Parotta Combo", 160),
+        ],
+    },
+    "Thali": {
+        "veg": [
+            ("Deluxe Veg Thali (Paneer, Dal, Sabzi, Rice, Rotis, Sweet)", 190),
+            ("Mini Executive Veg Thali", 150),
+            ("Rajasthani / Gujarati Special Thali", 220),
+        ],
+        "non_veg": [
+            ("Special Non-Veg Thali (Chicken Curry, Dal, Rice, Rotis)", 230),
+            ("Executive Chicken Thali Meal Box", 210),
+            ("Coastal Fish Curry Thali", 250),
+        ],
+    },
+    "Burgers & Fast Food": {
+        "veg": [
+            ("Crispy Veg Supreme Burger + Fries Combo", 160),
+            ("Paneer Royale Burger Meal", 190),
+            ("Veg Whopper / Jumbo Burger", 180),
+            ("Cheesy French Fries Large", 110),
+        ],
+        "non_veg": [
+            ("Crispy Chicken Burger + Fries Combo", 190),
+            ("Grilled Chicken Whopper Meal", 220),
+            ("Chicken Nuggets (8 Pcs) with Dip", 150),
+            ("Fiery Chicken Zinger Burger", 180),
+        ],
+    },
+    "Rolls & Wraps": {
+        "veg": [
+            ("Double Paneer Tikka Roll", 170),
+            ("Veggie Falafel Roll Combo", 150),
+            ("Cheese Corn & Jalapeno Roll", 160),
+            ("Chatpata Aloo Roll (2 Pcs)", 130),
+        ],
+        "non_veg": [
+            ("Chicken Tikka & Egg Double Roll", 190),
+            ("BBQ Chicken Shawarma Roll", 180),
+            ("Classic Double Chicken Roll", 190),
+            ("Mutton Seekh Kebab Roll", 220),
+        ],
+    },
+    "Healthy & Salads": {
+        "veg": [
+            ("Paneer & Quinoa Protein Salad Bowl", 190),
+            ("Subway 6-inch Paneer Tikka Sub + Drink", 210),
+            ("Mediterranean Falafel Hummus Bowl", 180),
+            ("Fruit & Nut Granola Bowl", 150),
+        ],
+        "non_veg": [
+            ("Roasted Chicken Breast Protein Salad", 220),
+            ("Subway 6-inch Roasted Chicken Sub + Drink", 230),
+            ("Grilled Chicken Teriyaki Salad Bowl", 210),
+            ("Smoked Chicken & Egg Protein Box", 200),
+        ],
+    },
 }
 
 
@@ -161,8 +278,8 @@ async def search_restaurants(cuisine: str, location: str, budget_per_head: float
     return sorted(fallback_results, key=lambda r: r["rating"], reverse=True)
 
 
-async def get_restaurant_menu(restaurant_id: str) -> List[Dict[str, Any]]:
-    """Retrieves items on a restaurant's menu."""
+async def get_restaurant_menu(restaurant_id: str, cuisine: str = "") -> List[Dict[str, Any]]:
+    """Retrieves items on a restaurant's menu, using cuisine-tailored fallbacks if needed."""
     try:
         result = await call_swiggy_mcp_tool("get_restaurant_menu", {"restaurantId": restaurant_id})
         raw_items = result.get("data", {}).get("items", []) or result.get("items", [])
@@ -177,16 +294,26 @@ async def get_restaurant_menu(restaurant_id: str) -> List[Dict[str, Any]]:
                 })
             return menu
     except Exception as exc:
-        logger.warning(f"Swiggy get_restaurant_menu failed ({exc}). Using fallback menu.")
+        logger.warning(f"Swiggy get_restaurant_menu failed ({exc}). Using curated cuisine menu fallback.")
 
-    # Fallback menu
+    # Match fallback specifically to selected cuisine
+    cuisine_menu = _CUISINE_MENU_FALLBACKS.get(cuisine)
+    if not cuisine_menu:
+        # Fallback to closest matching key or default to first
+        for k in _CUISINE_MENU_FALLBACKS:
+            if k.lower() in cuisine.lower() or cuisine.lower() in k.lower():
+                cuisine_menu = _CUISINE_MENU_FALLBACKS[k]
+                break
+        if not cuisine_menu:
+            cuisine_menu = _CUISINE_MENU_FALLBACKS.get("North Indian", next(iter(_CUISINE_MENU_FALLBACKS.values())))
+
     menu = []
-    for category, items in _MENU_FALLBACKS.items():
+    for category, items in cuisine_menu.items():
         for name, price in items:
             menu.append({
                 "id": str(uuid.uuid4())[:8],
                 "name": name,
-                "price": price,
+                "price": float(price),
                 "veg": category == "veg",
             })
     return menu

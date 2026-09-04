@@ -10,7 +10,7 @@
   <h1>{{ "What would you like today?" if poll.type == "dietary" else "Pick a cuisine" }}</h1>
   <form method="post">
     <label>Your name</label>
-    <input name="name" value="{{ user_name }}" required placeholder="e.g. John Doe" />
+    <input name="name" required placeholder="e.g. John Doe" />
     <label>Choice</label>
     <select name="choice">
       {% for opt in poll.options %}

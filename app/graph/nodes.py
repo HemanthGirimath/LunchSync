@@ -24,7 +24,8 @@ def await_restaurant_choice_node(state: LunchState) -> dict:
 
 
 async def get_menu_node(state: LunchState) -> dict:
-    menu = await swiggy.get_restaurant_menu(state["selected_restaurant"]["id"])
+    cuisine = state.get("cuisine", "")
+    menu = await swiggy.get_restaurant_menu(state["selected_restaurant"]["id"], cuisine=cuisine)
     return {"menu": menu}
 
 
@@ -45,7 +46,12 @@ async def build_cart_node(state: LunchState) -> dict:
 
 def await_cart_approval_node(state: LunchState) -> dict:
     decision = interrupt(
-        {"type": "approve_cart", "cart_items": state["cart_items"], "total_cost": state["total_cost"]}
+        {
+            "type": "approve_cart",
+            "cart_items": state["cart_items"],
+            "total_cost": state["total_cost"],
+            "menu": state.get("menu", []),
+        }
     )
     result = {}
     if decision and isinstance(decision, dict):
