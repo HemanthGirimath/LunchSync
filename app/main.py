@@ -194,16 +194,36 @@ def update_event_location(event_id: int, location: str = Form(...)):
     return RedirectResponse(f"/events/{event_id}", status_code=303)
 
 
+@app.get("/events/{event_id}/poll-counts")
+def event_poll_counts(event_id: int):
+    db = SessionLocal()
+    dietary_poll = db.query(Poll).filter_by(event_id=event_id, type="dietary").first()
+    cuisine_poll = db.query(Poll).filter_by(event_id=event_id, type="cuisine").first()
+    event = db.get(LunchEvent, event_id)
+    data = {
+        "status": event.status if event else "",
+        "dietary_count": len(dietary_poll.responses) if dietary_poll else 0,
+        "cuisine_count": len(cuisine_poll.responses) if cuisine_poll else 0,
+        "veg_count": event.veg_count if event else 0,
+        "non_veg_count": event.non_veg_count if event else 0,
+        "pure_veg_count": event.pure_veg_count if event else 0,
+    }
+    db.close()
+    return data
+
+
 @app.get("/poll/{poll_id}")
 def poll_page(request: Request, poll_id: int):
     db = SessionLocal()
     poll = db.get(Poll, poll_id)
     db.close()
+    user_name = request.cookies.get("lunchsync_user_name", "")
     return templates.TemplateResponse(
         "poll_page.html",
         {
             "request": request,
             "poll": poll,
+            "user_name": user_name,
             "submitted": False,
             "swiggy_connected": swiggy_auth.is_authenticated(),
         },
@@ -214,19 +234,24 @@ def poll_page(request: Request, poll_id: int):
 def poll_submit(request: Request, poll_id: int, name: str = Form(...), choice: str = Form(...)):
     db = SessionLocal()
     poll = db.get(Poll, poll_id)
+    clean_name = name.strip()
     if poll and not poll.closed:
-        poll.responses = [*poll.responses, {"name": name, "choice": choice}]
+        poll.responses = [*poll.responses, {"name": clean_name, "choice": choice}]
         db.commit()
     db.close()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "poll_page.html",
         {
             "request": request,
             "poll": poll,
+            "user_name": clean_name,
             "submitted": True,
             "swiggy_connected": swiggy_auth.is_authenticated(),
         },
     )
+    if clean_name:
+        response.set_cookie(key="lunchsync_user_name", value=clean_name, max_age=86400 * 30, httponly=False)
+    return response
 
 
 @app.post("/polls/{poll_id}/close")

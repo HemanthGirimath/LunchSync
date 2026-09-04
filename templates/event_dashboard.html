@@ -2,7 +2,34 @@
 {% block title %}Event #{{ event.id }}{% endblock %}
 {% block content %}
 <h1>Event #{{ event.id }} <span class="status">{{ event.status }}</span></h1>
-<p>Rs.{{ event.budget_per_head }}/head &middot; ~{{ event.headcount_estimate }} people</p>
+
+<!-- Headcount & Participation Summary Banner -->
+<div class="card" style="background: #f8fafc; border-left: 4px solid #e5602a; padding: 14px 18px;">
+  <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Budget</span>
+      <div style="font-size: 1.15rem; font-weight: 700; color: #0f172a;">Rs.{{ event.budget_per_head }}/head</div>
+    </div>
+    <div>
+      <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Initial Estimate</span>
+      <div style="font-size: 1.15rem; font-weight: 700; color: #0f172a;">~{{ event.headcount_estimate }} people</div>
+    </div>
+    <div>
+      <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Dietary Votes</span>
+      <div id="summary-dietary-votes" style="font-size: 1.15rem; font-weight: 700; color: #0f172a;">
+        {% if dietary_poll %}{{ dietary_poll.responses|length }}{% else %}{{ (event.veg_count or 0) + (event.non_veg_count or 0) + (event.pure_veg_count or 0) }}{% endif %} voted
+      </div>
+    </div>
+    {% if event.status not in ["dietary_poll_open"] %}
+    <div>
+      <span style="font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700;">Dietary Split</span>
+      <div style="font-size: 0.95rem; font-weight: 600; color: #334155;">
+        Veg: {{ event.veg_count }} &middot; Non-veg: {{ event.non_veg_count }} &middot; Pure veg: {{ event.pure_veg_count }}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
 
 <div class="card" style="background: #fafafa; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
   <div>
@@ -30,7 +57,7 @@
       <input type="text" class="link-box" readonly value="{{ base_url }}/poll/{{ dietary_poll.id }}" id="poll-link-{{ dietary_poll.id }}" />
       <button type="button" class="copy-btn" onclick="copyLink('poll-link-{{ dietary_poll.id }}', this)">📋 Copy</button>
     </div>
-    <p>{{ dietary_poll.responses|length }} responses so far.</p>
+    <p><strong id="dietary-count-display">{{ dietary_poll.responses|length }}</strong> responses recorded so far. <span style="font-size: 0.8rem; color: #888;">(auto-updating every 10s)</span></p>
     <form method="post" action="/polls/{{ dietary_poll.id }}/close">
       <button type="submit">Close poll now</button>
     </form>
@@ -39,13 +66,13 @@
 {% elif event.status == "cuisine_poll_open" %}
   <div class="card">
     <h2>Poll #2 — Cuisine</h2>
-    <p>Veg: {{ event.veg_count }} &middot; Non-veg: {{ event.non_veg_count }} &middot; Pure veg: {{ event.pure_veg_count }}</p>
+    <p><strong>Dietary poll results:</strong> {{ (event.veg_count or 0) + (event.non_veg_count or 0) + (event.pure_veg_count or 0) }} people voted (Veg: {{ event.veg_count }} &middot; Non-veg: {{ event.non_veg_count }} &middot; Pure veg: {{ event.pure_veg_count }})</p>
     <p>Share this link with employees:</p>
     <div class="link-box-container">
       <input type="text" class="link-box" readonly value="{{ base_url }}/poll/{{ cuisine_poll.id }}" id="poll-link-{{ cuisine_poll.id }}" />
       <button type="button" class="copy-btn" onclick="copyLink('poll-link-{{ cuisine_poll.id }}', this)">📋 Copy</button>
     </div>
-    <p>{{ cuisine_poll.responses|length }} responses so far.</p>
+    <p><strong id="cuisine-count-display">{{ cuisine_poll.responses|length }}</strong> responses recorded so far. <span style="font-size: 0.8rem; color: #888;">(auto-updating every 10s)</span></p>
     <form method="post" action="/polls/{{ cuisine_poll.id }}/close">
       <button type="submit">Close poll now</button>
     </form>
@@ -54,20 +81,37 @@
 {% elif event.status == "awaiting_restaurant_pick" %}
   <div class="card">
     <h2>Pick a restaurant — {{ event.winning_cuisine }}</h2>
+    <p style="color: #666; font-size: 0.9rem; margin-top: -6px;">Found {{ event.pending_interrupt.candidates|length }} restaurants matching {{ event.winning_cuisine }} around {{ event.location }}:</p>
     <form method="post" action="/events/{{ event.id }}/pick-restaurant">
-      {% for r in event.pending_interrupt.candidates %}
-        <label>
-          <input type="radio" name="restaurant_id" value="{{ r.id }}" {% if loop.first %}checked{% endif %} />
-          {{ r.name }} — {{ r.rating }}★ — ~Rs.{{ r.estimated_per_person_cost }}/head
-        </label>
-      {% endfor %}
-      <button type="submit">Select restaurant</button>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin: 12px 0;">
+        {% for r in event.pending_interrupt.candidates %}
+          <label style="margin: 0; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; background: #ffffff;">
+            <input type="radio" name="restaurant_id" value="{{ r.id }}" {% if loop.first %}checked{% endif %} style="width: auto; margin: 0;" />
+            <div style="flex: 1;">
+              <strong>{{ r.name }}</strong>
+              <div style="font-size: 0.85rem; color: #64748b;">
+                ★ {{ r.rating }} &middot; ~Rs.{{ r.estimated_per_person_cost }}/head &middot; ID: {{ r.id }}
+              </div>
+            </div>
+          </label>
+        {% endfor %}
+      </div>
+      <button type="submit">Select restaurant & build cart</button>
     </form>
   </div>
 
 {% elif event.status == "awaiting_cart_approval" %}
   <div class="card">
     <h2>Review cart — {{ event.selected_restaurant_name }}</h2>
+    
+    <!-- Explicit Headcount vs Vote details -->
+    {% set actual_voters = (event.veg_count or 0) + (event.non_veg_count or 0) + (event.pure_veg_count or 0) %}
+    {% set total_portions = event.pending_interrupt.cart_items | sum(attribute='quantity') %}
+    <div style="background: #f1f5f9; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; line-height: 1.5;">
+      <div>👥 <strong>Headcount Context:</strong> Initial estimate was <strong>{{ event.headcount_estimate }} people</strong>, and <strong>{{ actual_voters }} people</strong> voted (Veg: {{ event.veg_count }}, Non-veg: {{ event.non_veg_count }}, Pure veg: {{ event.pure_veg_count }}).</div>
+      <div style="margin-top: 4px;">🍱 Quantities are pre-filled for <strong>{{ total_portions }} portions</strong> based on actual votes. You can customize the quantities below before placing the order.</div>
+    </div>
+
     <form method="post" action="/events/{{ event.id }}/approve-cart">
       <table>
         <tr><th>Item</th><th>Type</th><th>Price</th><th>Qty</th></tr>
@@ -81,13 +125,22 @@
           </td>
           <td>{{ "Veg" if item.veg else "Non-veg" }}</td>
           <td>Rs.{{ item.price }}</td>
-          <td><input name="qty_{{ loop.index0 }}" type="number" value="{{ item.quantity }}" /></td>
+          <td><input name="qty_{{ loop.index0 }}" type="number" min="0" value="{{ item.quantity }}" style="width: 80px;" /></td>
         </tr>
         {% endfor %}
       </table>
       <input type="hidden" name="item_count" value="{{ event.pending_interrupt.cart_items|length }}" />
-      <p>Estimated total: Rs.{{ event.pending_interrupt.total_cost }}</p>
-      <button type="submit" name="mode" value="approve">Approve & place order</button>
+      
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 12px; padding: 10px 0; border-top: 2px solid #eee;">
+        <div>
+          <strong style="font-size: 1.1rem;">Estimated total: Rs.{{ event.pending_interrupt.total_cost }}</strong>
+          {% if total_portions > 0 %}
+            <span style="font-size: 0.85rem; color: #64748b; display: block;">~Rs.{{ (event.pending_interrupt.total_cost / total_portions)|round(1) }} per portion ({{ total_portions }} portions)</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <button type="submit" name="mode" value="approve">Approve & place order ({{ total_portions }} portions)</button>
       <button type="submit" name="mode" value="edit" class="secondary">Save edits & place order</button>
     </form>
   </div>
@@ -96,13 +149,51 @@
   <div class="card">
     <h2>Order {{ "delivered" if event.status == "delivered" else "placed" }}</h2>
     {% if order %}
-    <p>{{ order.restaurant_name }} &middot; Swiggy order {{ order.swiggy_order_id }}</p>
-    <p>Total: Rs.{{ order.total_cost }}</p>
-    <p><strong>{{ order.status }}</strong></p>
+    <p>{{ order.restaurant_name }} &middot; Swiggy order <code>{{ order.swiggy_order_id }}</code></p>
+    {% set ordered_portions = order.cart_items | sum(attribute='quantity') if order.cart_items else 0 %}
+    <div style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; margin: 10px 0; font-size: 0.9rem;">
+      <div><strong>Total cost:</strong> Rs.{{ order.total_cost }}</div>
+      <div><strong>Portions ordered:</strong> {{ ordered_portions }} portions (serving {{ (event.veg_count or 0) + (event.non_veg_count or 0) + (event.pure_veg_count or 0) }} voted participants, initial estimate: {{ event.headcount_estimate }})</div>
+    </div>
+    <p>Status: <strong class="status">{{ order.status }}</strong></p>
     {% endif %}
     {% if event.status != "delivered" %}
       <meta http-equiv="refresh" content="5">
     {% endif %}
   </div>
+{% endif %}
+
+{% if event.status in ["dietary_poll_open", "cuisine_poll_open"] %}
+<script>
+  // Automatically refresh poll response counts every 10 seconds
+  setInterval(async () => {
+    try {
+      const res = await fetch("/events/{{ event.id }}/poll-counts");
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      // If status changed on backend (e.g. closed by timer), refresh page
+      if (data.status && data.status !== "{{ event.status }}") {
+        window.location.reload();
+        return;
+      }
+
+      const dietaryElem = document.getElementById("dietary-count-display");
+      if (dietaryElem && data.dietary_count !== undefined) {
+        dietaryElem.innerText = data.dietary_count;
+      }
+      const summaryDietaryElem = document.getElementById("summary-dietary-votes");
+      if (summaryDietaryElem && data.dietary_count !== undefined) {
+        summaryDietaryElem.innerText = `${data.dietary_count} voted`;
+      }
+      const cuisineElem = document.getElementById("cuisine-count-display");
+      if (cuisineElem && data.cuisine_count !== undefined) {
+        cuisineElem.innerText = data.cuisine_count;
+      }
+    } catch (err) {
+      console.warn("Polling count check failed", err);
+    }
+  }, 10000);
+</script>
 {% endif %}
 {% endblock %}

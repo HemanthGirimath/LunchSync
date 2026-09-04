@@ -11,7 +11,7 @@ async def search_restaurants_node(state: LunchState) -> dict:
         location=state["location"],
         budget_per_head=state["budget_per_head"],
     )
-    return {"restaurant_candidates": candidates[:3]}
+    return {"restaurant_candidates": candidates[:10]}
 
 
 def await_restaurant_choice_node(state: LunchState) -> dict:
