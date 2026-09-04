@@ -1,5 +1,8 @@
 body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; color: #1a1a1a; }
-header { margin-bottom: 24px; }
+header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+.auth-badge { font-size: 0.85rem; font-weight: 600; padding: 6px 12px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.auth-connected { background: #e6f7ec; color: #1e7e34; }
+.auth-btn { background: #e5602a; color: white; margin: 0; }
 .brand { font-weight: 700; font-size: 1.3rem; color: #e5602a; text-decoration: none; }
 h1, h2 { margin-top: 0; }
 label { display: block; margin: 12px 0 4px; font-weight: 600; }

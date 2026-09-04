@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app import auth as swiggy_auth
 from app import services
 from app.config import BASE_URL
 from app.db import Base, SessionLocal, engine
@@ -27,17 +28,66 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/auth/swiggy/login")
+def swiggy_login():
+    redirect_uri = f"{BASE_URL.rstrip('/')}/auth/swiggy/callback"
+    state, auth_url = swiggy_auth.create_authorization_flow(redirect_uri)
+    return RedirectResponse(auth_url, status_code=307)
+
+
+@app.get("/auth/swiggy/status")
+def swiggy_status():
+    return {
+        "authenticated": swiggy_auth.is_authenticated(),
+        "has_token": swiggy_auth.get_token() is not None,
+    }
+
+
 @app.get("/auth/swiggy/callback")
-def swiggy_oauth_callback(request: Request):
+async def swiggy_oauth_callback(request: Request):
     code = request.query_params.get("code")
     state = request.query_params.get("state")
     error = request.query_params.get("error")
-    print(f"[swiggy oauth callback] code={code} state={state} error={error}")
-    return {
-        "message": "LunchSync received the Swiggy OAuth redirect.",
-        "code_received": bool(code),
-        "error": error,
-    }
+
+    if error:
+        return {
+            "status": "error",
+            "message": f"OAuth authorization failed: {error}",
+        }
+
+    if not code or not state:
+        return {
+            "status": "error",
+            "message": "Missing authorization code or state.",
+        }
+
+    verifier = swiggy_auth.pop_verifier_for_state(state)
+    if not verifier:
+        return {
+            "status": "error",
+            "message": "Invalid or expired state/session. Please initiate login again at /auth/swiggy/login.",
+        }
+
+    redirect_uri = f"{BASE_URL.rstrip('/')}/auth/swiggy/callback"
+    try:
+        token_data = await swiggy_auth.exchange_code_for_token(
+            code=code,
+            verifier=verifier,
+            redirect_uri=redirect_uri,
+        )
+        return {
+            "status": "success",
+            "message": "Successfully authenticated with Swiggy MCP!",
+            "token_type": token_data.get("token_type", "Bearer"),
+            "expires_in": token_data.get("expires_in"),
+            "scope": token_data.get("scope"),
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": f"Token exchange failed: {str(exc)}",
+        }
+
 
 
 @app.get("/")
@@ -45,7 +95,14 @@ def home(request: Request):
     db = SessionLocal()
     events = db.query(LunchEvent).order_by(LunchEvent.id.desc()).limit(10).all()
     db.close()
-    return templates.TemplateResponse("home.html", {"request": request, "events": events})
+    return templates.TemplateResponse(
+        "home.html",
+        {
+            "request": request,
+            "events": events,
+            "swiggy_connected": swiggy_auth.is_authenticated(),
+        },
+    )
 
 
 @app.post("/events")
@@ -80,6 +137,7 @@ def event_dashboard(request: Request, event_id: int):
             "cuisine_poll": cuisine_poll,
             "order": order,
             "base_url": BASE_URL,
+            "swiggy_connected": swiggy_auth.is_authenticated(),
         },
     )
 
@@ -89,7 +147,15 @@ def poll_page(request: Request, poll_id: int):
     db = SessionLocal()
     poll = db.get(Poll, poll_id)
     db.close()
-    return templates.TemplateResponse("poll_page.html", {"request": request, "poll": poll, "submitted": False})
+    return templates.TemplateResponse(
+        "poll_page.html",
+        {
+            "request": request,
+            "poll": poll,
+            "submitted": False,
+            "swiggy_connected": swiggy_auth.is_authenticated(),
+        },
+    )
 
 
 @app.post("/poll/{poll_id}")
@@ -100,7 +166,15 @@ def poll_submit(request: Request, poll_id: int, name: str = Form(...), choice: s
         poll.responses = [*poll.responses, {"name": name, "choice": choice}]
         db.commit()
     db.close()
-    return templates.TemplateResponse("poll_page.html", {"request": request, "poll": poll, "submitted": True})
+    return templates.TemplateResponse(
+        "poll_page.html",
+        {
+            "request": request,
+            "poll": poll,
+            "submitted": True,
+            "swiggy_connected": swiggy_auth.is_authenticated(),
+        },
+    )
 
 
 @app.post("/polls/{poll_id}/close")

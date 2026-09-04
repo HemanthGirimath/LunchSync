@@ -2,7 +2,7 @@ from langgraph.types import interrupt
 
 from app.graph.cart_ai import choose_items
 from app.graph.state import LunchState
-from app.mcp import swiggy_mock as swiggy
+from app.mcp import swiggy_client as swiggy
 
 
 async def search_restaurants_node(state: LunchState) -> dict:

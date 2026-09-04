@@ -58,3 +58,16 @@ class Order(Base):
     placed_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow
     )
+
+
+class SwiggyToken(Base):
+    __tablename__ = "swiggy_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    access_token: Mapped[str] = mapped_column(String)
+    expires_at: Mapped[float] = mapped_column(Float)
+    scope: Mapped[str] = mapped_column(String, default="")
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
+

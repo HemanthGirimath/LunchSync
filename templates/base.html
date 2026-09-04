@@ -6,7 +6,16 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header><a href="/" class="brand">LunchSync</a></header>
+  <header>
+    <a href="/" class="brand">LunchSync</a>
+    <div>
+      {% if swiggy_connected %}
+        <span class="auth-badge auth-connected">● Swiggy Connected</span>
+      {% else %}
+        <a href="/auth/swiggy/login" class="auth-badge auth-btn">Connect Swiggy</a>
+      {% endif %}
+    </div>
+  </header>
   <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

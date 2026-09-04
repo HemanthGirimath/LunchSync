@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy.orm import Session
 
 from app.graph import runner
-from app.mcp import swiggy_mock as swiggy
+from app.mcp import swiggy_client as swiggy
 from app.models import LunchEvent, Order, Poll
 
 CUISINE_OPTIONS = ["Biryani", "Pizza", "Thali", "Rolls", "Chinese"]
